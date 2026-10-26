@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   60600: {
     Escrow: {
-      address: "0x02e2F86748f46AB043D82C464f0F51147F2B52d3",
+      address: "0xDc0f0Ad6580cf7EF2227f48ABFc65e8700F2Ad73",
       abi: [
         {
           inputs: [
@@ -333,10 +333,10 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 2670197,
+      deployedOnBlock: 2670123,
     },
-    LJXToken: {
-      address: "0xdceD252d791De136FAf3252e0768AceF8de2141f",
+    PWQToken: {
+      address: "0x49d67FD9A5F2C4F0A186f77dF4Daa2C5DAFc33E4",
       abi: [
         {
           inputs: [],
@@ -611,7 +611,7 @@ const deployedContracts = {
         },
       ],
       inheritedFunctions: {},
-      deployedOnBlock: 2670147,
+      deployedOnBlock: 2670119,
     },
     YourContract: {
       address: "0xfC3983DE3F7cBe1Ba01084469779470AD0BbeFfa",
