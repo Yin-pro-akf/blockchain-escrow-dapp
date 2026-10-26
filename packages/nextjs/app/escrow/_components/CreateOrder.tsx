@@ -15,7 +15,7 @@ export type CreateOrderProps = {
 export function CreateOrder({ onSuccess }: CreateOrderProps) {
   const { address, chainId } = useAccount();
   const network = useSelectedNetwork();
-  const { data: token } = useDeployedContractInfo({ contractName: "LJXToken" });
+  const { data: token } = useDeployedContractInfo({ contractName: "PWQToken" });
   const { data: escrow } = useDeployedContractInfo({ contractName: "Escrow" });
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "Escrow" });
   const [seller, setSeller] = useState("");
