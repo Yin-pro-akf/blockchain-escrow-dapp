@@ -2,9 +2,10 @@
 
 import { useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { BaseError, isAddress, parseUnits, zeroAddress } from "viem";
+import { BaseError, erc20Abi, getAddress, isAddress, parseUnits, publicActions, zeroAddress } from "viem";
 import type { Hash } from "viem";
-import { useAccount } from "wagmi";
+import { useAccount, useConfig } from "wagmi";
+import { getAccount, getWalletClient } from "wagmi/actions";
 import { useDeployedContractInfo, useScaffoldWriteContract, useSelectedNetwork } from "~~/hooks/scaffold-eth";
 
 export type CreateOrderProps = {
@@ -15,7 +16,9 @@ export type CreateOrderProps = {
 export function CreateOrder({ onSuccess }: CreateOrderProps) {
   const { address, chainId } = useAccount();
   const network = useSelectedNetwork();
-  const { data: token } = useDeployedContractInfo({ contractName: "PWQToken" });
+  // escrow-lst-token-v1
+  const config = useConfig();
+  const [tokenAddress, setTokenAddress] = useState("");
   const { data: escrow } = useDeployedContractInfo({ contractName: "Escrow" });
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "Escrow" });
   const [seller, setSeller] = useState("");
@@ -35,7 +38,7 @@ export function CreateOrder({ onSuccess }: CreateOrderProps) {
     setTransactionHash(undefined);
 
     const sellerAddress = seller.trim();
-    if (!address || wrongNetwork || !token || !escrow) {
+    if (!address || wrongNetwork || !escrow) {
       setError("请连接钱包、切换到目标网络，并等待合约加载完成。");
       return;
     }
@@ -47,14 +50,14 @@ export function CreateOrder({ onSuccess }: CreateOrderProps) {
       setError("卖家不能是当前买家自己。");
       return;
     }
-    // Reject excess precision instead of letting parseUnits round the amount.
-    if (!/^\d+(\.\d{1,18})?$/.test(amount.trim())) {
-      setError("金额须为正数，最多支持 18 位小数。");
+    const rawToken = tokenAddress.trim();
+    if (!isAddress(rawToken) || rawToken.toLowerCase() === zeroAddress) {
+      setError("请输入有效的非零代币合约地址。");
       return;
     }
-    const tokenAmount = parseUnits(amount.trim(), 18);
-    if (tokenAmount <= 0n || tokenAmount >= 2n ** 256n) {
-      setError("金额必须大于 0，且在合约支持的范围内。");
+    const paymentToken = getAddress(rawToken);
+    if (!/^\d+(\.\d+)?$/.test(amount.trim())) {
+      setError("金额须为正数，小数位数将按所选代币精度检查。");
       return;
     }
     const duration = Number(minutes);
@@ -73,15 +76,40 @@ export function CreateOrder({ onSuccess }: CreateOrderProps) {
     setPending(true);
     let confirmedHash: Hash | undefined;
     try {
+      const wallet = await getWalletClient(config, { chainId: network.id });
+      if (!wallet) throw new Error("请先连接钱包。");
+      const client = wallet.extend(publicActions);
+      const decimals = await client.readContract({
+        address: paymentToken,
+        abi: erc20Abi,
+        functionName: "decimals",
+      });
+      if (!Number.isInteger(decimals) || decimals < 0 || decimals > 255) {
+        throw new Error("代币返回了无效的精度。");
+      }
+      if ((amount.trim().split(".")[1]?.length ?? 0) > decimals) {
+        throw new Error(`此代币最多支持 ${decimals} 位小数。`);
+      }
+      const tokenAmount = parseUnits(amount.trim(), decimals);
+      if (tokenAmount <= 0n || tokenAmount >= 2n ** 256n) {
+        throw new Error("金额必须大于 0，且在合约支持的范围内。");
+      }
+      const current = getAccount(config);
+      if (current.address?.toLowerCase() !== address.toLowerCase() || current.chainId !== network.id) {
+        throw new Error("账户或网络已改变，请切回原账户和网络后重试。");
+      }
       confirmedHash = await writeContractAsync(
         {
           functionName: "createOrder",
-          args: [sellerAddress, token.address, tokenAmount, BigInt(deadline), description.trim()],
+          args: [sellerAddress, paymentToken, tokenAmount, BigInt(deadline), description.trim()],
         },
         { blockConfirmations: 1 },
       );
       if (!confirmedHash) throw new Error("交易未发送，请检查钱包连接和网络后重试。");
       setTransactionHash(confirmedHash);
+      window.dispatchEvent(new CustomEvent("escrow:receipt-confirmed", {
+        detail: { chainId: network.id, address: escrow.address, hash: confirmedHash },
+      }));
       setSeller("");
       setAmount("");
       setDescription("");
@@ -100,8 +128,19 @@ export function CreateOrder({ onSuccess }: CreateOrderProps) {
     <form onSubmit={handleSubmit} className="card bg-base-100 shadow-md" aria-label="创建托管订单">
       <div className="card-body gap-4">
         <h2 className="card-title">创建订单</h2>
-        <p className="m-0 text-sm">使用组长部署的代币，金额以“个”为单位。当前连接账户将作为买家。</p>
+        <p className="m-0 text-sm">请输入你持有的 ERC20 代币合约地址。金额以“个”为单位，当前连接账户将作为买家。</p>
         <fieldset disabled={pending} className="flex flex-col gap-4">
+          <label className="flex flex-col gap-1">
+            <span>付款代币合约地址</span>
+            <input
+              className="input input-bordered w-full font-mono"
+              value={tokenAddress}
+              onChange={e => setTokenAddress(e.target.value)}
+              placeholder="0x…"
+              required
+            />
+            <span className="text-xs text-base-content/60">请填写代币合约地址；创建后该订单的代币地址不能修改。</span>
+          </label>
           <label className="flex flex-col gap-1">
             <span>卖家地址</span>
             <input
@@ -144,8 +183,8 @@ export function CreateOrder({ onSuccess }: CreateOrderProps) {
               placeholder="页面订单"
             />
           </label>
-          <button type="submit" className="btn btn-primary" disabled={!address || wrongNetwork || !token || !escrow}>
-            {pending ? "等待钱包签名及链上确认…" : "创建订单"}
+          <button type="submit" className="btn btn-primary" disabled={!address || wrongNetwork || !escrow}>
+            {pending ? "正在读取代币精度或等待钱包及链上确认…" : "创建订单"}
           </button>
         </fieldset>
         {!address && <p className="m-0 text-sm">请先连接 MetaMask 钱包。</p>}
