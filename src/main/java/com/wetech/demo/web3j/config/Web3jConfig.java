@@ -19,7 +19,7 @@ public class Web3jConfig {
     @Value("${web3j.client-address:http://localhost:8545}")
     private String clientAddress;
 
-    @Value("${web3j.private-key:0x8f2a55949038a9610f50fb23b5883af3b4ecb3c3bb792cbcefbd1542c692be63}")
+    @Value("${web3j.private-key}")
     private String privateKey;
 
     @Value("${web3j.gas-price:20000000000}")

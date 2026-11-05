@@ -107,7 +107,7 @@ server.port=8080
 
 # Web3j configuration
 web3j.client-address=http://localhost:8545
-web3j.private-key=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+web3j.private-key=${WEB3J_PRIVATE_KEY}
 web3j.gas-price=20000000000
 web3j.gas-limit=6721975
 ```
@@ -115,5 +115,7 @@ web3j.gas-limit=6721975
 ## Notes
 
 - This is a simple example and not intended for production use
-- The private key is hardcoded for demonstration purposes only - in a real application, you should use a secure key management solution
+- Supply the signing key through the `WEB3J_PRIVATE_KEY` environment variable. There is no default private key.
+- Set this variable in the shell or deployment secret store before starting the application. Spring Boot does not automatically load `.env` files.
+- Never commit private keys or seed phrases. Previously committed keys must be replaced because removing them from the current code does not remove them from Git history.
 - The application assumes you have an Ethereum client running at the configured address
