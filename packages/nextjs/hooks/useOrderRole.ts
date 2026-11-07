@@ -11,6 +11,7 @@ export const ORDER_STATUS = {
   Completed: 2,
   Refunded: 3,
   Disputed: 4,
+  Shipped: 5,
 } as const;
 
 export type OrderRole = "buyer" | "seller" | "arbiter" | "spectator";

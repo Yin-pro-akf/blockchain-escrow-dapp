@@ -18,7 +18,7 @@ export function CreateOrder({ onSuccess }: CreateOrderProps) {
   const { data: token } = useDeployedContractInfo({ contractName: "PWQToken" });
   const { data: escrow } = useDeployedContractInfo({ contractName: "Escrow" });
   const { writeContractAsync } = useScaffoldWriteContract({ contractName: "Escrow" });
-  const [seller, setSeller] = useState("");
+  const [seller, setSeller] = useState("0x7Ee066564A11b879Bc6C8AAEeD372D7a401354E5");
   const [amount, setAmount] = useState("");
   const [minutes, setMinutes] = useState("30");
   const [description, setDescription] = useState("");

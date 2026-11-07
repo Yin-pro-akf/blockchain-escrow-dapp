@@ -57,6 +57,7 @@ const config: HardhatUserConfig = {
       allowUnlimitedContractSize: true,
       url: `https://rpc-testnet.potos.hk`,
       chainId: 60600,
+      gasPrice: 21000,
       accounts: [deployerPrivateKey],
     },
     mainnet: {

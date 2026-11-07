@@ -6,7 +6,7 @@ import { useScaffoldWriteContract } from "~~/hooks/scaffold-eth";
 
 type DisputePanelProps = OrderParties & {
   orderId: bigint | number;
-  /** getOrder 返回的 status，0 Created … 4 Disputed。 */
+  /** getOrder 返回的订单状态。 */
   status: number | bigint;
 };
 
@@ -24,7 +24,8 @@ export const DisputePanel = ({ orderId, buyer, seller, status }: DisputePanelPro
   const [pending, setPending] = useState<"dispute" | "seller" | "buyer" | null>(null);
 
   const statusNumber = Number(status);
-  const canDispute = (isBuyer || isSeller) && statusNumber === ORDER_STATUS.Paid;
+  const canDispute =
+    (isBuyer || isSeller) && (statusNumber === ORDER_STATUS.Paid || statusNumber === ORDER_STATUS.Shipped);
   const canResolve = isArbiter && statusNumber === ORDER_STATUS.Disputed;
   const busy = pending !== null || isMining;
 

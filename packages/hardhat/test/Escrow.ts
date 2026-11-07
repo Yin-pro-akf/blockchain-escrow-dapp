@@ -58,10 +58,30 @@ describe("Escrow", function () {
     await escrow.connect(buyer).createOrder(seller.address, await token.getAddress(), AMOUNT, deadline, "一本书");
     await token.connect(buyer).approve(await escrow.getAddress(), AMOUNT);
     await escrow.connect(buyer).deposit(0);
+    await expect(escrow.connect(buyer).confirm(0)).to.be.revertedWith("Escrow: wrong status");
+    await escrow.connect(seller).markShipped(0);
     await escrow.connect(buyer).confirm(0);
 
     expect(await token.balanceOf(seller.address)).to.equal(AMOUNT);
     expect((await escrow.getOrder(0)).status).to.equal(2); // Completed
+  });
+
+  it("仅卖家可标记已付款订单发货，发货后即使超期也不能直接退款", async function () {
+    const { token, escrow, buyer, seller, deadline } = await loadFixture(deployFixture);
+    const escrowAddress = await escrow.getAddress();
+    await escrow.connect(buyer).createOrder(seller.address, await token.getAddress(), AMOUNT, deadline, "一本书");
+    await expect(escrow.connect(seller).markShipped(0)).to.be.revertedWith("Escrow: wrong status");
+    await token.connect(buyer).approve(escrowAddress, AMOUNT);
+    await escrow.connect(buyer).deposit(0);
+
+    await expect(escrow.connect(buyer).markShipped(0)).to.be.revertedWith("Escrow: caller is not the seller");
+    await expect(escrow.connect(seller).markShipped(0)).to.emit(escrow, "OrderShipped").withArgs(0);
+    await expect(escrow.connect(seller).markShipped(0)).to.be.revertedWith("Escrow: wrong status");
+
+    await time.increaseTo(deadline + 1);
+    await expect(escrow.connect(buyer).refund(0)).to.be.revertedWith("Escrow: wrong status");
+    expect((await escrow.getOrder(0)).status).to.equal(5); // Shipped
+    expect(await token.balanceOf(escrowAddress)).to.equal(AMOUNT);
   });
 
   it("deadline 之前 refund 失败，deadline 之后 refund 成功并退回买家", async function () {
@@ -88,11 +108,12 @@ describe("Escrow", function () {
     await expect(escrow.connect(stranger).resolve(0, false)).to.be.revertedWith("Escrow: caller is not the arbiter");
   });
 
-  it("dispute 后仲裁人 resolve(false) 退款给买家，状态变为 Refunded", async function () {
+  it("发货后仍可 dispute，仲裁人 resolve(false) 将资金退给买家", async function () {
     const { token, escrow, buyer, seller, arbiter, deadline } = await loadFixture(deployFixture);
     await escrow.connect(buyer).createOrder(seller.address, await token.getAddress(), AMOUNT, deadline, "一本书");
     await token.connect(buyer).approve(await escrow.getAddress(), AMOUNT);
     await escrow.connect(buyer).deposit(0);
+    await escrow.connect(seller).markShipped(0);
     await escrow.connect(buyer).dispute(0);
 
     await escrow.connect(arbiter).resolve(0, false);

@@ -18,6 +18,7 @@ const STATUS_MAP: Record<number, { text: string; badgeClass: string }> = {
   2: { text: "已完成", badgeClass: "badge-success" },
   3: { text: "已退款", badgeClass: "badge-neutral" },
   4: { text: "争议中", badgeClass: "badge-error" },
+  5: { text: "已发货", badgeClass: "badge-info" },
 };
 
 export const OrderList = () => {
